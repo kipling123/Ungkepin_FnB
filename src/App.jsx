@@ -7,7 +7,6 @@ import { OrderDataPage } from './pages/OrderDataPage';
 import { OrderSummaryPage } from './pages/OrderSummaryPage';
 import { PaymentPage } from './pages/PaymentPage';
 import { OrderPage } from './pages/OrderPage';
-import { ProfilePage } from './pages/ProfilePage';
 import { ReceiptPage } from './pages/ReceiptPage';
 import { Loader } from './components/Loader';
 import './App.css';
@@ -57,7 +56,6 @@ function Shell() {
             <Route path="/order-summary" element={<OrderSummaryPage />} />
             <Route path="/payment" element={<PaymentPage />} />
             <Route path="/order" element={<OrderPage />} />
-            <Route path="/profile" element={<ProfilePage />} />
             <Route path="/receipt" element={<ReceiptPage />} />
           </Routes>
         )}

@@ -89,17 +89,6 @@ const s = {
     color: '#9B978E',
     marginTop: 3,
   },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 13,
-    background: 'linear-gradient(135deg, #F7D4BE, #F0A878)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: 20,
-    flexShrink: 0,
-  },
 
   /* Search */
   searchWrap: { padding: '14px 18px 0' },
@@ -392,7 +381,7 @@ export const MenuPage = () => {
     }
   }, [addedItem]);
 
-  const cartCount = cartDraft?.length || 0;
+  const cartCount = cartDraft?.quantity || 0;
 
   const filteredProducts = foodProducts.filter((p) => {
     const matchCat = activeCategory === 'Semua' || p.category === activeCategory;
@@ -458,7 +447,13 @@ export const MenuPage = () => {
             <button
               className="icon-btn"
               style={s.iconBtn}
-              onClick={() => navigate('/cart')}
+              onClick={() => {
+                if (cartDraft?.product) {
+                  navigate('/order-data');
+                } else {
+                  setAddedItem("Keranjang masih kosong");
+                }
+              }}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4A4740" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
@@ -480,7 +475,6 @@ export const MenuPage = () => {
               <h1 style={s.greetTitle}>Halo, Ungkeepin!</h1>
               <p style={s.greetSub}>Mau makan apa hari ini?</p>
             </div>
-            <div style={s.avatar}>👤</div>
           </div>
         </div>
 

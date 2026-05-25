@@ -1,5 +1,6 @@
 import { CheckCircle2, MapPin, Clock, ChevronLeft, ShoppingBag, Shield } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 
 import { useCheckout } from '../context/CheckoutContext';
 
@@ -65,18 +66,55 @@ const StepIndicator = ({ currentStep }) => {
 
 export const OrderSummaryPage = () => {
   const navigate = useNavigate();
-  const { cartSummary } = useCheckout();
+  const { cartSummary, createOrder } = useCheckout();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!cartSummary || !cartSummary.product) {
+      navigate('/');
+    }
+  }, [cartSummary, navigate]);
 
   if (!cartSummary || !cartSummary.product) return null;
+
+  const handlePaymentClick = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      // Create order in backend
+      const orderResult = await createOrder({
+        product: cartSummary.product,
+        quantity: cartSummary.quantity,
+        subtotal: cartSummary.subtotal,
+        deliveryType: cartSummary.deliveryType,
+        deliveryPrice: cartSummary.deliveryPrice,
+        total: cartSummary.total,
+        address: cartSummary.address,
+        fullName: cartSummary.fullName,
+        phone: cartSummary.whatsapp,
+      });
+
+      // Navigate to payment page with orderId
+      navigate(`/payment?orderId=${orderResult.orderId}`);
+    } catch (err) {
+      setError(err.message || "Gagal membuat pesanan");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div style={{
       minHeight: '100vh',
       background: '#F7F8FA',
       fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif",
-      maxWidth: 480,
+      maxWidth: '100%',
+      width: '100%',
       margin: '0 auto',
       position: 'relative',
+      display: 'flex',
+      flexDirection: 'column',
     }}>
 
       {/* Header */}
@@ -144,7 +182,7 @@ export const OrderSummaryPage = () => {
         <StepIndicator currentStep={2} />
       </div>
 
-      <div style={{ padding: '20px 20px 120px' }}>
+      <div style={{ padding: '16px 16px 120px', flex: 1 }}>
 
         {/* Availability Badge */}
         <div style={{
@@ -249,7 +287,7 @@ export const OrderSummaryPage = () => {
         </div>
 
         {/* Info Cards Row */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 16 }}>
           {/* Destination */}
           <div style={{
             background: '#fff',
@@ -274,7 +312,7 @@ export const OrderSummaryPage = () => {
             <p style={{ margin: '0 0 2px', fontSize: 14, fontWeight: 800, color: '#111827' }}>
               {cartSummary.address}
             </p>
-            <p style={{ margin: 0, fontSize: 11, fontWeight: 600, color: '#9CA3AF' }}>Lantai 2</p>
+            <p style={{ margin: 0, fontSize: 11, fontWeight: 600, color: '#9CA3AF' }}></p>
           </div>
 
           {/* ETA */}
@@ -331,14 +369,7 @@ export const OrderSummaryPage = () => {
             </p>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              {[
-                { label: 'Subtotal', value: formatRp(cartSummary.subtotal), valueStyle: { color: '#374151', fontWeight: 700 } },
-                {
-                  label: 'Biaya Pengiriman',
-                  value: cartSummary.deliveryPrice === 0 ? 'GRATIS' : formatRp(cartSummary.deliveryPrice),
-                  valueStyle: { color: cartSummary.deliveryPrice === 0 ? '#16A34A' : '#374151', fontWeight: 800 }
-                },
-                { label: 'Pajak (10%)', value: formatRp(cartSummary.tax), valueStyle: { color: '#374151', fontWeight: 700 } },
+              {[                { label: 'Subtotal', value: formatRp(cartSummary.subtotal), valueStyle: { color: '#374151', fontWeight: 700 } },
               ].map((row, i) => (
                 <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: 14, fontWeight: 500, color: '#6B7280' }}>{row.label}</span>
@@ -360,7 +391,7 @@ export const OrderSummaryPage = () => {
             <div>
               <p style={{ margin: 0, fontSize: 12, fontWeight: 600, color: '#9CA3AF' }}>Total Pembayaran</p>
               <p style={{ margin: 0, fontSize: 22, fontWeight: 900, color: '#111827', letterSpacing: '-0.5px', lineHeight: 1.2 }}>
-                {formatRp(cartSummary.total)}
+                {formatRp(cartSummary.subtotal)}
               </p>
             </div>
             <div style={{
@@ -378,6 +409,15 @@ export const OrderSummaryPage = () => {
         </div>
 
         {/* Terms */}
+        {error && (
+          <div style={{
+            background: '#FEE2E2', border: '1px solid #FECACA',
+            borderRadius: 4, padding: '10px 12px', marginBottom: 16,
+            color: '#DC2626', fontSize: 12, fontWeight: 600, textAlign: 'center'
+          }}>
+            {error}
+          </div>
+        )}
         <p style={{ textAlign: 'center', fontSize: 12, fontWeight: 500, color: '#9CA3AF', marginBottom: 0, lineHeight: 1.6 }}>
           Dengan membayar, Anda menyetujui{' '}
           <span style={{ color: '#374151', fontWeight: 700, textDecoration: 'underline', textDecorationColor: '#D1D5DB', textUnderlineOffset: 3, cursor: 'pointer' }}>
@@ -390,40 +430,48 @@ export const OrderSummaryPage = () => {
       <div style={{
         position: 'fixed',
         bottom: 0,
-        left: '50%',
-        transform: 'translateX(-50%)',
-        width: '100%',
-        maxWidth: 480,
-        background: 'linear-gradient(to top, #fff 80%, transparent)',
-        padding: '16px 20px 28px',
+        left: 0,
+        right: 0,
+        background: 'linear-gradient(to top, #fff 90%, rgba(255,255,255,0.85) 100%)',
+        padding: '12px 16px 20px',
         zIndex: 20,
+        boxShadow: '0 -8px 24px rgba(0,0,0,0.06)',
+        display: 'flex',
+        justifyContent: 'center',
+        maxWidth: '100%',
       }}>
-        <button
-          onClick={() => navigate('/payment')}
-          style={{
-            width: '100%',
-            height: 58,
-            borderRadius: 4,
-            background: 'linear-gradient(135deg, #F27322 0%, #E05E0A 100%)',
-            border: 'none',
-            color: '#fff',
-            fontSize: 16,
-            fontWeight: 800,
-            letterSpacing: '-0.2px',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 8,
-            boxShadow: '0 8px 24px rgba(242,115,34,0.4)',
-            transition: 'transform 0.15s, box-shadow 0.15s',
-          }}
-          onMouseDown={e => { e.currentTarget.style.transform = 'scale(0.97)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(242,115,34,0.3)'; }}
-          onMouseUp={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(242,115,34,0.4)'; }}
-        >
-          <Shield size={18} strokeWidth={2.5} />
-          Bayar Sekarang · {formatRp(cartSummary.total)}
-        </button>
+        <div style={{ width: '100%', maxWidth: 480, paddingLeft: '0', paddingRight: '0' }}>
+          <button
+            onClick={handlePaymentClick}
+            disabled={loading}
+            style={{
+              width: '100%',
+              height: 54,
+              borderRadius: 6,
+              background: loading ? '#D1D5DB' : 'linear-gradient(135deg, #F27322 0%, #E05E0A 100%)',
+              border: 'none',
+              color: '#fff',
+              cursor: loading ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '0 18px',
+              boxShadow: loading ? 'none' : '0 8px 24px rgba(242,115,34,0.35)',
+              transition: 'all 0.2s ease',
+              fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif",
+              fontSize: 'clamp(13px, 4vw, 15px)',
+            }}
+            onMouseDown={e => { e.currentTarget.style.transform = 'scale(0.98)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(242,115,34,0.25)'; }}
+            onMouseUp={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(242,115,34,0.35)'; }}
+            onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(242,115,34,0.35)'; }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+              <Shield size={20} strokeWidth={2.5} style={{ flexShrink: 0 }} />
+              <span style={{ fontSize: 'inherit', fontWeight: 800, letterSpacing: '-0.2px', whiteSpace: 'nowrap' }}>Bayar Sekarang</span>
+            </div>
+            <span style={{ fontSize: 'inherit', fontWeight: 800, letterSpacing: '-0.2px', flexShrink: 0, marginLeft: '8px' }}>{formatRp(cartSummary.subtotal)}</span>
+          </button>
+        </div>
       </div>
     </div>
   );

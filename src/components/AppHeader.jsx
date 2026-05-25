@@ -6,10 +6,10 @@ export function AppHeader() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const { cartDraft } = useCheckout();
-  const count = cartDraft.quantity;
+  const count = cartDraft?.quantity || 0;
   
   const isCheckout = ['/order-data', '/order-summary', '/payment'].includes(pathname);
-  const cartTo = cartDraft.product ? '/order-data' : '/order';
+  const cartTo = cartDraft?.product ? '/order-data' : '/order';
 
   return (
     <header className="sticky top-0 z-50 flex h-[72px] w-full items-center justify-between border-b border-gray-50 bg-white/90 backdrop-blur-lg px-6 shadow-[0_2px_15px_rgba(0,0,0,0.02)]">

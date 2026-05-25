@@ -1,18 +1,83 @@
 import { Printer, CheckCircle2, ChevronLeft } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useCheckout } from '../context/CheckoutContext';
 import { formatRp } from '../utils/formatting';
 import { AppHeader } from '../components/AppHeader';
+import { apiClient } from '../services/api';
 
 export const ReceiptPage = () => {
   const navigate = useNavigate();
-  const { cartSummary } = useCheckout();
+  const [searchParams] = useSearchParams();
+  const orderIdParam = searchParams.get('orderId');
 
-  const orderId = `UKP-${cartSummary.total % 1000000}`;
-  const now = "15 Mei 2026, 10:00";
+  const { cartSummary } = useCheckout();
+  const [order, setOrder] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch order details from database
+  useEffect(() => {
+    const fetchOrderDetails = async () => {
+      if (!orderIdParam) {
+        setLoading(false);
+        return;
+      }
+      try {
+        const data = await apiClient.getOrder(orderIdParam);
+        setOrder(data.order);
+      } catch (err) {
+        console.error("Gagal memuat struk:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchOrderDetails();
+  }, [orderIdParam]);
+
+  const displayTotal = order ? order.total : (cartSummary ? cartSummary.total : 0);
+  const displaySubtotal = order ? order.subtotal : (cartSummary ? cartSummary.subtotal : 0);
+  const displayDeliveryPrice = order ? order.deliveryPrice : (cartSummary ? cartSummary.deliveryPrice : 0);
+  const displayProductName = order ? order.productName : (cartSummary?.product ? cartSummary.product.name : "");
+  const displayQuantity = order ? order.quantity : (cartSummary ? cartSummary.quantity : 0);
+  const displayFullName = order ? order.fullName : (cartSummary ? cartSummary.fullName : "");
+
+  const displayOrderId = orderIdParam 
+    ? `UKP-${orderIdParam.substring(0, 8).toUpperCase()}` 
+    : (order?.id ? `UKP-${order.id.substring(0, 8).toUpperCase()}` : "UKP-00000000");
+
+  const displayDate = order?.createdAt 
+    ? new Date(order.createdAt).toLocaleString('id-ID', {
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+    : new Date().toLocaleString('id-ID', {
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  if (loading) {
+    return (
+      <div style={{
+        minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: '#F7F8FA', fontFamily: "'Plus Jakarta Sans', sans-serif"
+      }}>
+        <p style={{ fontWeight: 800, color: '#F27322' }}>Memuat struk pesanan...</p>
+      </div>
+    );
+  }
 
   // If no data, redirect to menu
-  if (!cartSummary || !cartSummary.product) {
+  if (!order && (!cartSummary || !cartSummary.product)) {
     return (
       <div className="flex h-screen flex-col items-center justify-center bg-white p-6 text-center">
         <p className="text-gray-400 font-bold">Belum ada struk untuk ditampilkan</p>
@@ -26,15 +91,16 @@ export const ReceiptPage = () => {
     );
   }
 
-  const handlePrint = () => {
-    window.print();
-  };
-
   return (
     <div style={{
       minHeight: '100vh', background: '#F7F8FA',
       fontFamily: "'Plus Jakarta Sans', sans-serif",
-      maxWidth: 480, margin: '0 auto', paddingBottom: 120
+      maxWidth: '100%',
+      width: '100%',
+      margin: '0 auto',
+      paddingBottom: 120,
+      display: 'flex',
+      flexDirection: 'column',
     }}>
       {/* CSS for printing */}
       <style>{`
@@ -106,7 +172,7 @@ export const ReceiptPage = () => {
       </div>
 
       {/* Main Receipt Content with Printer Effect */}
-      <div id="receipt-content" style={{ padding: '20px 24px', overflow: 'hidden' }}>
+      <div id="receipt-content" style={{ padding: '20px 16px', overflow: 'hidden', flex: 1 }}>
         {/* Printer Slot Mockup */}
         <div className="no-print printer-slot" />
 
@@ -135,15 +201,15 @@ export const ReceiptPage = () => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 30, padding: '15px 0', borderTop: '1.5px dashed #F3F4F6', borderBottom: '1.5px dashed #F3F4F6' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: 12, fontWeight: 600, color: '#9CA3AF' }}>ID PESANAN</span>
-                <span style={{ fontSize: 12, fontWeight: 800, color: '#111827' }}>{orderId}</span>
+                <span style={{ fontSize: 12, fontWeight: 800, color: '#111827' }}>{displayOrderId}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: 12, fontWeight: 600, color: '#9CA3AF' }}>TANGGAL</span>
-                <span style={{ fontSize: 12, fontWeight: 800, color: '#111827' }}>{now}</span>
+                <span style={{ fontSize: 12, fontWeight: 800, color: '#111827' }}>{displayDate}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: 12, fontWeight: 600, color: '#9CA3AF' }}>PELANGGAN</span>
-                <span style={{ fontSize: 12, fontWeight: 800, color: '#111827' }}>{cartSummary.fullName || 'Pelanggan Setia'}</span>
+                <span style={{ fontSize: 12, fontWeight: 800, color: '#111827' }}>{displayFullName || 'Pelanggan Setia'}</span>
               </div>
             </div>
 
@@ -152,12 +218,12 @@ export const ReceiptPage = () => {
               <p style={{ margin: '0 0 16px', fontSize: 11, fontWeight: 800, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Rincian Pesanan</p>
               <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
                 <div style={{ flex: 1 }}>
-                  <p style={{ margin: 0, fontSize: 15, fontWeight: 800, color: '#111827' }}>{cartSummary.product.name}</p>
+                  <p style={{ margin: 0, fontSize: 15, fontWeight: 800, color: '#111827' }}>{displayProductName}</p>
                   <p style={{ margin: '2px 0 0', fontSize: 12, fontWeight: 500, color: '#6B7280' }}>
-                    × {cartSummary.quantity}
+                    × {displayQuantity}
                   </p>
                 </div>
-                <span style={{ fontSize: 15, fontWeight: 800, color: '#111827' }}>{formatRp(cartSummary.subtotal)}</span>
+                <span style={{ fontSize: 15, fontWeight: 800, color: '#111827' }}>{formatRp(displaySubtotal)}</span>
               </div>
             </div>
 
@@ -165,22 +231,18 @@ export const ReceiptPage = () => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 30 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: 14, fontWeight: 500, color: '#6B7280' }}>Subtotal</span>
-                <span style={{ fontSize: 14, fontWeight: 700, color: '#111827' }}>{formatRp(cartSummary.subtotal)}</span>
+                <span style={{ fontSize: 14, fontWeight: 700, color: '#111827' }}>{formatRp(displaySubtotal)}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: 14, fontWeight: 500, color: '#6B7280' }}>Ongkir</span>
-                <span style={{ fontSize: 14, fontWeight: 700, color: '#111827' }}>{formatRp(cartSummary.deliveryPrice)}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 14, fontWeight: 500, color: '#6B7280' }}>Pajak (10%)</span>
-                <span style={{ fontSize: 14, fontWeight: 700, color: '#111827' }}>{formatRp(cartSummary.tax)}</span>
+                <span style={{ fontSize: 14, fontWeight: 700, color: '#111827' }}>{formatRp(displayDeliveryPrice)}</span>
               </div>
               
               <div style={{ height: 1.5, background: '#F3F4F6', margin: '8px 0' }} />
               
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: 16, fontWeight: 900, color: '#111827' }}>TOTAL</span>
-                <span style={{ fontSize: 22, fontWeight: 900, color: '#F27322' }}>{formatRp(cartSummary.total)}</span>
+                <span style={{ fontSize: 22, fontWeight: 900, color: '#F27322' }}>{formatRp(displayTotal)}</span>
               </div>
             </div>
 
@@ -212,18 +274,19 @@ export const ReceiptPage = () => {
 
       {/* Floating Action Buttons */}
       <div className="no-print" style={{
-        position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)',
-        width: '100%', maxWidth: 480, background: 'rgba(255,255,255,0.9)',
-        backdropBlur: '12px', padding: '16px 24px 32px', zIndex: 100,
-        display: 'flex', gap: 12, borderTop: '1px solid #F3F4F6'
+        position: 'fixed', bottom: 0, left: 0, right: 0,
+        background: 'rgba(255,255,255,0.9)',
+        backdropBlur: '12px', padding: '16px 16px 20px', zIndex: 100,
+        display: 'flex', gap: 12, borderTop: '1px solid #F3F4F6',
+        maxWidth: '100%',
       }}>
         <button 
           onClick={() => navigate('/')}
           style={{
-            flex: 1, height: 52, borderRadius: 8, background: '#F9FAFB',
-            border: '1.5px solid #F3F4F6', color: '#111827', fontSize: 14, fontWeight: 800,
+            flex: 1, height: 48, borderRadius: 8, background: '#F9FAFB',
+            border: '1.5px solid #F3F4F6', color: '#111827', fontSize: 'clamp(12px, 3vw, 14px)', fontWeight: 800,
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-            cursor: 'pointer'
+            cursor: 'pointer', minHeight: 48
           }}
         >
           <ChevronLeft size={16} strokeWidth={3} />
@@ -233,10 +296,10 @@ export const ReceiptPage = () => {
         <button 
           onClick={handlePrint}
           style={{
-            flex: 2, height: 52, borderRadius: 8, background: '#F27322',
-            border: 'none', color: '#fff', fontSize: 14, fontWeight: 800,
+            flex: 2, height: 48, borderRadius: 8, background: '#F27322',
+            border: 'none', color: '#fff', fontSize: 'clamp(12px, 3vw, 14px)', fontWeight: 800,
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-            boxShadow: '0 8px 24px rgba(242,115,34,0.25)', cursor: 'pointer'
+            boxShadow: '0 8px 24px rgba(242,115,34,0.25)', cursor: 'pointer', minHeight: 48
           }}
         >
           <Printer size={16} strokeWidth={3} />

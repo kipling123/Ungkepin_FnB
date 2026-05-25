@@ -232,11 +232,13 @@ function FieldGroup({ label, error, children }) {
 /* ── Main Component ── */
 export const OrderDataPage = () => {
   const navigate = useNavigate();
-  const { cartDraft, saveForSummary, setCartQuantity } = useCheckout();
+  const { cartDraft, saveForSummary, setCartQuantity, login, isAuthenticated, user } = useCheckout();
   
   const [delivery, setDelivery] = useState("campus");
   const [form, setForm] = useState({ fullName: "", whatsapp: "", address: "" });
   const [errors, setErrors] = useState({});
+  const [loading, setLoading] = useState(false);
+  const [authError, setAuthError] = useState("");
 
   useEffect(() => {
     if (!cartDraft.product) {
@@ -244,21 +246,32 @@ export const OrderDataPage = () => {
     }
   }, [cartDraft.product, navigate]);
 
+  // Pre-fill form from user profile if logged in
+  useEffect(() => {
+    if (user) {
+      setForm((prev) => ({
+        fullName: prev.fullName || user.fullName || "",
+        whatsapp: prev.whatsapp || (user.phone ? user.phone.replace(/^(\+62|62)/, '') : "") || "",
+        address: prev.address || user.address || "",
+      }));
+    }
+  }, [user]);
+
   if (!cartDraft.product) return null;
 
   const product = cartDraft.product;
   const quantity = cartDraft.quantity;
   const subtotal = product.priceNumeric * quantity;
   const deliveryFee = delivery === "campus" ? 0 : DELIVERY_FEE;
-  const tax = Math.round(subtotal * 0.1);
-  const total = subtotal + deliveryFee + tax;
+  const total = subtotal + deliveryFee;
 
   const handleChange = (field) => (e) => {
     setForm((prev) => ({ ...prev, [field]: e.target.value }));
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: "" }));
+    if (authError) setAuthError("");
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const newErrors = {};
     if (!form.fullName.trim()) newErrors.fullName = "Nama lengkap harus diisi";
     if (!form.whatsapp.trim()) newErrors.whatsapp = "Nomor WhatsApp harus diisi";
@@ -267,17 +280,30 @@ export const OrderDataPage = () => {
     setErrors(newErrors);
     
     if (Object.keys(newErrors).length === 0) {
-      saveForSummary({
-        product,
-        quantity,
-        subtotal,
-        deliveryType: delivery,
-        deliveryPrice: deliveryFee,
-        tax,
-        total,
-        ...form
-      });
-      navigate('/order-summary');
+      setLoading(true);
+      setAuthError("");
+      try {
+        // Login/register user if not authenticated
+        if (!isAuthenticated) {
+          await login(form.whatsapp, form.fullName);
+        }
+
+        // Save order summary to context (will be sent to backend in next page)
+        saveForSummary({
+          product,
+          quantity,
+          subtotal,
+          deliveryType: delivery,
+          deliveryPrice: deliveryFee,
+          total,
+          ...form
+        });
+        navigate('/order-summary');
+      } catch (err) {
+        setAuthError(err.message || "Gagal login, silahkan coba lagi");
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -325,6 +351,15 @@ export const OrderDataPage = () => {
 
           {/* Informasi Pengiriman */}
           <SectionCard title="Informasi Pengiriman">
+            {authError && (
+              <div style={{
+                background: '#FEE2E2', border: '1px solid #FECACA',
+                borderRadius: 4, padding: '10px 12px', marginBottom: 12,
+                color: '#DC2626', fontSize: 12, fontWeight: 600
+              }}>
+                {authError}
+              </div>
+            )}
             <FieldGroup label="Nama Lengkap" error={errors.fullName}>
               <input
                 type="text"
@@ -465,10 +500,6 @@ export const OrderDataPage = () => {
                   <span style={{ fontSize: 13, fontWeight: 700, color: "#374151" }}>{formatRp(DELIVERY_FEE)}</span>
                 )}
               </div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontSize: 13, fontWeight: 500, color: "#6B7280" }}>Pajak (10%)</span>
-                <span style={{ fontSize: 13, fontWeight: 700, color: "#374151" }}>{formatRp(tax)}</span>
-              </div>
             </div>
 
             <div style={{ border: "none", borderTop: "2px dashed #F3F4F6", margin: "14px 0" }} />
@@ -499,23 +530,30 @@ export const OrderDataPage = () => {
         position: "fixed", bottom: 0, left: 0, right: 0,
         background: "linear-gradient(to top, #fff 70%, rgba(255,255,255,0))",
         padding: "10px 16px 18px",
-        maxWidth: 390, margin: "0 auto",
+        maxWidth: "100%",
+        margin: "0 auto",
         zIndex: 100,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
       }}>
+      <div style={{ width: "100%", maxWidth: "480px" }}>
         <button
           onClick={handleSubmit}
+          disabled={loading}
           style={{
             width: "100%", height: 52, borderRadius: 4,
-            background: "linear-gradient(135deg, #F27322 0%, #D9620F 100%)",
+            background: loading ? "#D1D5DB" : "linear-gradient(135deg, #F27322 0%, #D9620F 100%)",
             border: "none", color: "#fff",
-            fontFamily: "inherit", fontSize: 15, fontWeight: 800,
+            fontFamily: "inherit", fontSize: 'clamp(13px, 3.5vw, 15px)', fontWeight: 800,
             display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-            boxShadow: "0 6px 20px rgba(242,115,34,0.38)",
-            cursor: "pointer", letterSpacing: -0.2,
+            boxShadow: loading ? "none" : "0 6px 20px rgba(242,115,34,0.38)",
+            cursor: loading ? "not-allowed" : "pointer", letterSpacing: -0.2,
+            opacity: loading ? 0.7 : 1,
           }}
         >
-          Lanjut ke Ringkasan
-          <ArrowRight />
+          {loading ? "Memproses..." : "Lanjut ke Ringkasan"}
+          {!loading && <ArrowRight />}
         </button>
         <div style={{
           marginTop: 10, textAlign: "center",
@@ -525,6 +563,7 @@ export const OrderDataPage = () => {
         }}>
           <CheckIcon />
           Pembayaran Aman &amp; Terenkripsi
+        </div>
         </div>
       </div>
     </div>

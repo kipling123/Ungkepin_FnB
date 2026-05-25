@@ -1,4 +1,4 @@
-import { Utensils, ReceiptText, User } from 'lucide-react';
+import { Utensils, ReceiptText } from 'lucide-react';
 import { useLocation, Link } from 'react-router-dom';
 import { useCheckout } from '../context/CheckoutContext';
 
@@ -15,9 +15,8 @@ export const BottomNavigation = () => {
       name: 'PESANAN',
       icon: ReceiptText,
       path: orderHref,
-      isActive: ordersRoute && pathname !== '/' && pathname !== '/profile',
+      isActive: ordersRoute && pathname !== '/',
     },
-    { name: 'PROFIL', icon: User, path: '/profile', isActive: pathname === '/profile' },
   ];
 
   return (
