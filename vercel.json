@@ -1,13 +1,14 @@
 {
     "experimentalServices": {
         "frontend": {
-            "root": "frontend",
             "routePrefix": "/",
-            "framework": "vite"
+            "framework": "vite",
+            "installCommand": "npm install",
+            "buildCommand": "npm run build:frontend"
         },
         "backend": {
-            "root": "backend",
-            "routePrefix": "/_/backend"
+            "routePrefix": "/_backend",
+            "framework": "express"
         }
     }
 }
