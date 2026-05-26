@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
-import { User, Session } from '../database.js';
+import { User, Session } from '../database-mongodb.js';
 
 export function createAuthRoutes() {
   const router = Router();
@@ -119,69 +119,6 @@ export function createAuthRoutes() {
       res.json({ success: true, message: 'Logged out' });
     } catch (err) {
       console.error('[Auth] Logout error:', err);
-      next(err);
-    }
-  });
-
-  return router;
-}
-        token,
-        user: {
-          id: user.id,
-          phone: user.phone,
-          fullName: user.fullName,
-        },
-      });
-    } catch (err) {
-      next(err);
-    }
-  });
-
-  // Verify token
-  router.post('/verify', async (req, res, next) => {
-    try {
-      const { token } = req.body;
-
-      if (!token) {
-        return res.status(400).json({ error: 'Token required' });
-      }
-
-      const session = await getAsync(
-        db,
-        'SELECT * FROM sessions WHERE token = ? AND expiresAt > datetime("now")',
-        [token]
-      );
-
-      if (!session) {
-        return res.status(401).json({ error: 'Invalid or expired token' });
-      }
-
-      const user = await getAsync(db, 'SELECT * FROM users WHERE id = ?', [session.userId]);
-
-      res.json({
-        valid: true,
-        user: {
-          id: user.id,
-          phone: user.phone,
-          fullName: user.fullName,
-        },
-      });
-    } catch (err) {
-      next(err);
-    }
-  });
-
-  // Logout
-  router.post('/logout', async (req, res, next) => {
-    try {
-      const token = req.headers.authorization?.split('Bearer ')[1];
-
-      if (token) {
-        await runAsync(db, 'DELETE FROM sessions WHERE token = ?', [token]);
-      }
-
-      res.json({ success: true });
-    } catch (err) {
       next(err);
     }
   });

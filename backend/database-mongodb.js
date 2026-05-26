@@ -3,9 +3,8 @@ import mongoose from 'mongoose';
 // Define schemas
 const userSchema = new mongoose.Schema({
   _id: String,
-  phone: { type: String, unique: true, required: true, sparse: true },
+  phone: { type: String, unique: true, required: true },
   fullName: String,
-  password: String,
   address: String,
   createdAt: { type: Date, default: Date.now },
 });
@@ -31,7 +30,7 @@ const orderSchema = new mongoose.Schema({
 
 const paymentSchema = new mongoose.Schema({
   _id: String,
-  orderId: { type: String, required: true, unique: true, sparse: true },
+  orderId: { type: String, unique: true },
   amount: Number,
   method: String,
   transactionId: String,
@@ -43,7 +42,7 @@ const paymentSchema = new mongoose.Schema({
 const sessionSchema = new mongoose.Schema({
   _id: String,
   userId: String,
-  token: { type: String, unique: true, sparse: true },
+  token: { type: String, unique: true },
   expiresAt: Date,
   createdAt: { type: Date, default: Date.now },
 });

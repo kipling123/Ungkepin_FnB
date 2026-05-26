@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import { Session } from './database.js';
+import { Session } from './database-mongodb.js';
 
 export function authMiddleware() {
   return async (req, res, next) => {
