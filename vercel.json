@@ -9,5 +9,9 @@
             "routePrefix": "/_backend",
             "framework": "express"
         }
-    }
+    },
+    "regions": [
+        "sin1"
+    ],
+    "crons": []
 }
