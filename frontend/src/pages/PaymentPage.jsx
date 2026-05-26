@@ -123,7 +123,9 @@ export const PaymentPage = () => {
     }
     try {
       // 1) Verifikasi pembayaran ke backend
-      await apiClient.verifyPayment(targetOrderId, `TXN_${Date.now()}`);
+      console.log('Verifying payment for orderId:', targetOrderId);
+      const verifyResponse = await apiClient.verifyPayment(targetOrderId, `TXN_${Date.now()}`);
+      console.log('Payment verification response:', verifyResponse);
 
       // 2) Convert bukti bayar ke base64 supaya bisa dibawa ke halaman struk
       let proofBase64 = null;
@@ -140,8 +142,9 @@ export const PaymentPage = () => {
         },
       });
     } catch (err) {
-      console.error('Gagal memverifikasi:', err);
-      setError('Gagal memproses pembayaran. Coba lagi.');
+      console.error('Payment verification failed:', err);
+      const errorMsg = err.message || 'Gagal memproses pembayaran. Coba lagi.';
+      setError(errorMsg);
     } finally {
       setVerifying(false);
     }

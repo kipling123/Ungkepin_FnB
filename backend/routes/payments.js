@@ -12,6 +12,8 @@ export function createPaymentRoutes(db) {
       const { transactionId } = req.body;
       const userId = req.userId;
 
+      console.log(`[Payment Verify] orderId: ${orderId}, userId: ${userId}, transactionId: ${transactionId}`);
+
       // Verify order belongs to user
       const order = await getAsync(
         db,
@@ -20,15 +22,19 @@ export function createPaymentRoutes(db) {
       );
 
       if (!order) {
+        console.error(`[Payment Verify] Order not found: ${orderId}`);
         return res.status(404).json({ error: 'Order not found' });
       }
 
       if (order.paymentStatus === 'COMPLETED') {
+        console.warn(`[Payment Verify] Order already paid: ${orderId}`);
         return res.status(400).json({ error: 'Order already paid' });
       }
 
       // Update payment status
       const now = new Date().toISOString();
+      console.log(`[Payment Verify] Updating payment record for orderId: ${orderId}`);
+      
       await runAsync(
         db,
         'UPDATE payments SET status = ?, transactionId = ?, verifiedAt = ? WHERE orderId = ?',
@@ -36,11 +42,15 @@ export function createPaymentRoutes(db) {
       );
 
       // Update order status
+      console.log(`[Payment Verify] Updating order status for orderId: ${orderId}`);
+      
       await runAsync(
         db,
         'UPDATE orders SET paymentStatus = ?, paidAt = ? WHERE id = ?',
         ['COMPLETED', now, orderId]
       );
+
+      console.log(`[Payment Verify] Success for orderId: ${orderId}`);
 
       res.json({
         success: true,
@@ -49,6 +59,7 @@ export function createPaymentRoutes(db) {
         message: 'Payment verified successfully',
       });
     } catch (err) {
+      console.error('[Payment Verify] Error:', err);
       next(err);
     }
   });
