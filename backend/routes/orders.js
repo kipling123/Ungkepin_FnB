@@ -6,7 +6,7 @@ export function createOrderRoutes(db) {
   const router = Router();
 
   // Create order
-  router.post('/orders', async (req, res, next) => {
+  router.post('/', async (req, res, next) => {
     try {
       const { product, quantity, subtotal, deliveryType, deliveryPrice, total, address, fullName, phone } = req.body;
       const userId = req.userId;
@@ -61,7 +61,7 @@ export function createOrderRoutes(db) {
   });
 
   // Get user's orders
-  router.get('/orders', async (req, res, next) => {
+  router.get('/', async (req, res, next) => {
     try {
       const userId = req.userId;
 
@@ -78,7 +78,7 @@ export function createOrderRoutes(db) {
   });
 
   // Get specific order
-  router.get('/orders/:orderId', async (req, res, next) => {
+  router.get('/:orderId', async (req, res, next) => {
     try {
       const { orderId } = req.params;
       const userId = req.userId;

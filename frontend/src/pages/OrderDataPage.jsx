@@ -240,11 +240,18 @@ export const OrderDataPage = () => {
   const [loading, setLoading] = useState(false);
   const [authError, setAuthError] = useState("");
 
+  // Support both old shape (object with items) and new shape (array)
+  const items = Array.isArray(cartDraft)
+    ? cartDraft
+    : (cartDraft.items || (cartDraft.product ? [{ product: cartDraft.product, quantity: cartDraft.quantity }] : []));
+
+  const quantity = items.reduce((s, it) => s + (it.quantity || 0), 0);
+
   useEffect(() => {
-    if (!cartDraft.product) {
+    if (!items || items.length === 0) {
       navigate('/');
     }
-  }, [cartDraft.product, navigate]);
+  }, [items, navigate]);
 
   // Pre-fill form from user profile if logged in
   useEffect(() => {
@@ -257,11 +264,9 @@ export const OrderDataPage = () => {
     }
   }, [user]);
 
-  if (!cartDraft.product) return null;
+  if (!items || items.length === 0) return null;
 
-  const product = cartDraft.product;
-  const quantity = cartDraft.quantity;
-  const subtotal = product.priceNumeric * quantity;
+  const subtotal = items.reduce((acc, item) => acc + ((item.product.priceNumeric || 0) * (item.quantity || 0)), 0);
   const deliveryFee = delivery === "campus" ? 0 : DELIVERY_FEE;
   const total = subtotal + deliveryFee;
 
@@ -290,7 +295,8 @@ export const OrderDataPage = () => {
 
         // Save order summary to context (will be sent to backend in next page)
         saveForSummary({
-          product,
+          items,
+          product: items[0]?.product,
           quantity,
           subtotal,
           deliveryType: delivery,
@@ -341,6 +347,16 @@ export const OrderDataPage = () => {
         href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap"
         rel="stylesheet"
       />
+      <style>{`
+        input::-webkit-outer-spin-button,
+        input::-webkit-inner-spin-button {
+          -webkit-appearance: none;
+          margin: 0;
+        }
+        input[type=number] {
+          -moz-appearance: textfield;
+        }
+      `}</style>
       <div style={styles.phoneBody}>
         <Header cartCount={quantity} onBack={() => navigate('/')} />
         <StepperIndicator />
@@ -449,39 +465,66 @@ export const OrderDataPage = () => {
 
             <hr style={{ border: "none", borderTop: "1px solid #F7F8FA", margin: "14px 0" }} />
 
-            {/* Quantity */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: "#374151" }}>Jumlah Porsi</span>
-              <div style={{
-                display: "flex", alignItems: "center",
-                background: "#F7F8FA", borderRadius: 4,
-                border: "1.5px solid #F3F4F6", overflow: "hidden",
-              }}>
-                <button
-                  onClick={() => setCartQuantity(quantity - 1)}
-                  style={{
-                    width: 36, height: 36, border: "none", background: "transparent",
-                    fontSize: 18, fontWeight: 700, color: "#9CA3AF",
-                    cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-                    lineHeight: 1,
-                  }}
-                >−</button>
-                <div style={{ width: 1, height: 20, background: "#E5E7EB" }} />
-                <div style={{
-                  minWidth: 36, textAlign: "center",
-                  fontSize: 14, fontWeight: 800, color: "#111827",
-                }}>{quantity}</div>
-                <div style={{ width: 1, height: 20, background: "#E5E7EB" }} />
-                <button
-                  onClick={() => setCartQuantity(quantity + 1)}
-                  style={{
-                    width: 36, height: 36, border: "none", background: "transparent",
-                    fontSize: 18, fontWeight: 700, color: "#9CA3AF",
-                    cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-                    lineHeight: 1,
-                  }}
-                >+</button>
-              </div>
+            {/* List of Cart Items */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 2 }}>Daftar Pesanan</div>
+                {items.map((item) => (
+                <div key={item.product.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, flex: 1 }}>
+                    <img 
+                      src={item.product.image} 
+                      alt={item.product.name} 
+                      style={{ width: 44, height: 44, borderRadius: 4, objectFit: "cover", border: "1px solid #F3F4F6", flexShrink: 0 }}
+                    />
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 12.5, fontWeight: 800, color: "#111827", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {item.product.name}
+                      </div>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: "#F27322", marginTop: 2 }}>
+                        {item.product.price}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{
+                    display: "flex", alignItems: "center",
+                    background: "#F7F8FA", borderRadius: 4,
+                    border: "1.5px solid #F3F4F6", overflow: "hidden",
+                    flexShrink: 0,
+                  }}>
+                    <button
+                      onClick={() => setCartQuantity(item.product.id, item.quantity - 1)}
+                      style={{
+                        width: 32, height: 32, border: "none", background: "transparent",
+                        fontSize: 16, fontWeight: 700, color: "#9CA3AF",
+                        cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                        lineHeight: 1,
+                      }}
+                    >−</button>
+                    <div style={{ width: 1, height: 16, background: "#E5E7EB" }} />
+                    <span style={{
+                      width: 36,
+                      textAlign: "center",
+                      fontSize: 12.5,
+                      fontWeight: 800,
+                      color: "#111827",
+                      userSelect: "none",
+                    }}>
+                      {item.quantity}
+                    </span>
+                    <div style={{ width: 1, height: 16, background: "#E5E7EB" }} />
+                    <button
+                      onClick={() => setCartQuantity(item.product.id, item.quantity + 1)}
+                      style={{
+                        width: 32, height: 32, border: "none", background: "transparent",
+                        fontSize: 16, fontWeight: 700, color: "#9CA3AF",
+                        cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                        lineHeight: 1,
+                      }}
+                    >+</button>
+                  </div>
+                </div>
+              ))}
             </div>
           </SectionCard>
 

@@ -6,16 +6,13 @@ export const BottomNavigation = () => {
   const { pathname } = useLocation();
   const { cartDraft } = useCheckout();
 
-  const ordersRoute = ['/order', '/order-data', '/order-summary', '/payment'].includes(pathname);
-  const orderHref = cartDraft.product ? '/order-data' : '/order';
-
   const navItems = [
     { name: 'MENU', icon: Utensils, path: '/', isActive: pathname === '/' },
     {
       name: 'PESANAN',
       icon: ReceiptText,
-      path: orderHref,
-      isActive: ordersRoute && pathname !== '/',
+      path: '/order',
+      isActive: pathname === '/order',
     },
   ];
 

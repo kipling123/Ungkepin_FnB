@@ -6,7 +6,7 @@ export function createPaymentRoutes(db) {
   const router = Router();
 
   // Verify payment (simulate payment verification)
-  router.post('/payments/:orderId/verify', async (req, res, next) => {
+  router.post('/:orderId/verify', async (req, res, next) => {
     try {
       const { orderId } = req.params;
       const { transactionId } = req.body;
@@ -54,7 +54,7 @@ export function createPaymentRoutes(db) {
   });
 
   // Check payment status
-  router.get('/payments/:orderId/status', async (req, res, next) => {
+  router.get('/:orderId/status', async (req, res, next) => {
     try {
       const { orderId } = req.params;
       const userId = req.userId;
@@ -87,7 +87,7 @@ export function createPaymentRoutes(db) {
   });
 
   // Simulate QRIS payment (for testing - would be real payment gateway in production)
-  router.post('/payments/:orderId/qris/callback', async (req, res, next) => {
+  router.post('/:orderId/qris/callback', async (req, res, next) => {
     try {
       const { orderId } = req.params;
       const { status } = req.body;

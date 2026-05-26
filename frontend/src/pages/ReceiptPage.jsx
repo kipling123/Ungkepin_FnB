@@ -68,7 +68,15 @@ export const ReceiptPage = () => {
       redirectingRef.current = true;
       
       const phoneNumber = import.meta.env.VITE_ADMIN_WHATSAPP || '6281903967518';
-      const text = `=============================\n        *UNGKEEPIN*\n   Cita Rasa Nusantara\n=============================\n*ID PESANAN:* ${displayOrderId}\n*TANGGAL:* ${displayDate}\n*PELANGGAN:* ${displayFullName || 'Pelanggan Setia'}\n-----------------------------\n*Rincian Pesanan:*\n${displayProductName}\n  × ${displayQuantity}   ${formatRp(displaySubtotal)}\n-----------------------------\n*Subtotal:* ${formatRp(displaySubtotal)}\n*Ongkir:* ${formatRp(displayDeliveryPrice)}\n-----------------------------\n*TOTAL:* ${formatRp(displayTotal)}\n=============================\n\nSaya telah melakukan pembayaran. Berikut konfirmasi struk belanja saya.`;
+      
+      let itemsDetailsText = "";
+      if (displayProductName.includes(' + ')) {
+        itemsDetailsText = displayProductName.split(' + ').map(item => `• ${item}`).join('\n');
+      } else {
+        itemsDetailsText = `${displayProductName}\n  × ${displayQuantity}   ${formatRp(displaySubtotal)}`;
+      }
+
+      const text = `=============================\n        *UNGKEEPIN*\n   Cita Rasa Nusantara\n=============================\n*ID PESANAN:* ${displayOrderId}\n*TANGGAL:* ${displayDate}\n*PELANGGAN:* ${displayFullName || 'Pelanggan Setia'}\n-----------------------------\n*Rincian Pesanan:*\n${itemsDetailsText}\n-----------------------------\n*Subtotal:* ${formatRp(displaySubtotal)}\n*Ongkir:* ${formatRp(displayDeliveryPrice)}\n-----------------------------\n*TOTAL:* ${formatRp(displayTotal)}\n=============================\n\nSaya telah melakukan pembayaran. Berikut konfirmasi struk belanja saya.`;
       
       const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(text)}`;
       window.location.href = whatsappUrl;
@@ -236,13 +244,27 @@ export const ReceiptPage = () => {
             {/* Items */}
             <div style={{ marginBottom: 30 }}>
               <p style={{ margin: '0 0 16px', fontSize: 11, fontWeight: 800, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Rincian Pesanan</p>
-              <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                <div style={{ flex: 1 }}>
-                  <p style={{ margin: 0, fontSize: 15, fontWeight: 800, color: '#111827' }}>{displayProductName}</p>
-                  <p style={{ margin: '2px 0 0', fontSize: 12, fontWeight: 500, color: '#6B7280' }}>
-                    × {displayQuantity}
-                  </p>
-                </div>
+              {displayProductName.split(' + ').map((itemStr, idx) => {
+                const match = itemStr.match(/(.*)\s\((\d+)x\)$/);
+                const name = match ? match[1] : itemStr;
+                const qty = match ? match[2] : (displayProductName.includes(' + ') ? '' : displayQuantity);
+                
+                return (
+                  <div key={idx} style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: idx < displayProductName.split(' + ').length - 1 ? 12 : 0 }}>
+                    <div style={{ flex: 1 }}>
+                      <p style={{ margin: 0, fontSize: 15, fontWeight: 800, color: '#111827' }}>{name}</p>
+                      {qty && (
+                        <p style={{ margin: '2px 0 0', fontSize: 12, fontWeight: 500, color: '#6B7280' }}>
+                          × {qty}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+              
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 16, paddingTop: 16, borderTop: '1px dashed #F3F4F6' }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: '#9CA3AF' }}>Subtotal Item</span>
                 <span style={{ fontSize: 15, fontWeight: 800, color: '#111827' }}>{formatRp(displaySubtotal)}</span>
               </div>
             </div>

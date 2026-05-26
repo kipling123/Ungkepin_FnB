@@ -71,21 +71,32 @@ export const OrderSummaryPage = () => {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!cartSummary || !cartSummary.product) {
+    if (!cartSummary || !cartSummary.items || cartSummary.items.length === 0) {
       navigate('/');
     }
   }, [cartSummary, navigate]);
 
-  if (!cartSummary || !cartSummary.product) return null;
+  if (!cartSummary || !cartSummary.items || cartSummary.items.length === 0) return null;
 
   const handlePaymentClick = async () => {
     setLoading(true);
     setError("");
     try {
-      // Create order in backend
+      // Pack items into a compatible single-product structure for database fields
+      const productIds = cartSummary.items.map(item => item.product.id).join(',');
+      const productNamesCombined = cartSummary.items
+        .map(item => `${item.product.name} (${item.quantity}x)`)
+        .join(' + ');
+      const firstProductImage = cartSummary.items[0]?.product?.image || null;
+      const totalQuantity = cartSummary.items.reduce((acc, item) => acc + item.quantity, 0);
+
       const orderResult = await createOrder({
-        product: cartSummary.product,
-        quantity: cartSummary.quantity,
+        product: {
+          id: productIds,
+          name: productNamesCombined,
+          image: firstProductImage,
+        },
+        quantity: totalQuantity,
         subtotal: cartSummary.subtotal,
         deliveryType: cartSummary.deliveryType,
         deliveryPrice: cartSummary.deliveryPrice,
@@ -146,17 +157,20 @@ export const OrderSummaryPage = () => {
         <span style={{ fontSize: 17, fontWeight: 800, color: '#F27322', letterSpacing: '-0.3px' }}>
           Ungkeepin
         </span>
-        <div style={{
-          background: '#F27322',
-          borderRadius: 4,
-          width: 38,
-          height: 38,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          position: 'relative',
-          cursor: 'pointer',
-        }}>
+        <div 
+          onClick={() => navigate('/order-data')}
+          style={{
+            background: '#F27322',
+            borderRadius: 4,
+            width: 38,
+            height: 38,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            position: 'relative',
+            cursor: 'pointer',
+          }}
+        >
           <ShoppingBag size={18} color="#fff" strokeWidth={2.5} />
           <span style={{
             position: 'absolute',
@@ -173,7 +187,9 @@ export const OrderSummaryPage = () => {
             alignItems: 'center',
             justifyContent: 'center',
             border: '2px solid #fff',
-          }}>2</span>
+          }}>
+            {cartSummary?.quantity || cartDraft?.quantity || 0}
+          </span>
         </div>
       </div>
 
@@ -241,48 +257,58 @@ export const OrderSummaryPage = () => {
             </span>
           </div>
 
-          <div style={{ padding: 16, display: 'flex', gap: 14, alignItems: 'center' }}>
-            {/* Product Image */}
-            <div style={{
-              width: 88,
-              height: 88,
-              borderRadius: 4,
-              overflow: 'hidden',
-              flexShrink: 0,
-              border: '1px solid #F3F4F6',
-              background: '#F9FAFB',
-            }}>
-              <img
-                src={cartSummary.product.image}
-                alt={cartSummary.product.name}
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-              />
-            </div>
-
-            {/* Product Info */}
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: '#111827', letterSpacing: '-0.2px', lineHeight: 1.3 }}>
-                {cartSummary.product.name}
-              </h3>
-              <p style={{ margin: 0, fontSize: 12, fontWeight: 500, color: '#9CA3AF' }}>
-                {cartSummary.product.summaryNote || 'Level 3 • Nasi Putih • Es Teh Manis'}
-              </p>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
-                <span style={{
-                  background: '#F3F4F6',
-                  color: '#6B7280',
-                  fontSize: 12,
-                  fontWeight: 700,
-                  padding: '3px 10px',
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            {cartSummary.items.map((item, idx) => (
+              <div key={item.product.id} style={{ 
+                padding: 16, 
+                display: 'flex', 
+                gap: 14, 
+                alignItems: 'center',
+                borderTop: idx > 0 ? '1px solid #F9FAFB' : 'none'
+              }}>
+                {/* Product Image */}
+                <div style={{
+                  width: 64,
+                  height: 64,
                   borderRadius: 4,
+                  overflow: 'hidden',
+                  flexShrink: 0,
+                  border: '1px solid #F3F4F6',
+                  background: '#F9FAFB',
                 }}>
-                  × {cartSummary.quantity}
-                </span>
-                <span style={{ fontSize: 16, fontWeight: 800, color: '#111827' }}>
-                  {formatRp(cartSummary.subtotal)}
-                </span>
+                  <img
+                    src={item.product.image}
+                    alt={item.product.name}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                </div>
+
+                {/* Product Info */}
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
+                  <h3 style={{ margin: 0, fontSize: 13.5, fontWeight: 800, color: '#111827', letterSpacing: '-0.2px', lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {item.product.name}
+                  </h3>
+                  <p style={{ margin: 0, fontSize: 11, fontWeight: 500, color: '#9CA3AF' }}>
+                    {item.product.price}
+                  </p>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
+                    <span style={{
+                      background: '#F3F4F6',
+                      color: '#6B7280',
+                      fontSize: 11,
+                      fontWeight: 700,
+                      padding: '2px 8px',
+                      borderRadius: 4,
+                    }}>
+                      × {item.quantity}
+                    </span>
+                    <span style={{ fontSize: 13.5, fontWeight: 800, color: '#111827' }}>
+                      {formatRp(item.product.priceNumeric * item.quantity)}
+                    </span>
+                  </div>
+                </div>
               </div>
-            </div>
+            ))}
           </div>
         </div>
 
@@ -369,7 +395,13 @@ export const OrderSummaryPage = () => {
             </p>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              {[                { label: 'Subtotal', value: formatRp(cartSummary.subtotal), valueStyle: { color: '#374151', fontWeight: 700 } },
+              {[
+                { label: 'Subtotal', value: formatRp(cartSummary.subtotal), valueStyle: { color: '#374151', fontWeight: 700 } },
+                { 
+                  label: 'Pengiriman', 
+                  value: cartSummary.deliveryPrice === 0 ? 'GRATIS' : formatRp(cartSummary.deliveryPrice), 
+                  valueStyle: cartSummary.deliveryPrice === 0 ? { color: '#16A34A', fontWeight: 800 } : { color: '#374151', fontWeight: 700 } 
+                },
               ].map((row, i) => (
                 <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: 14, fontWeight: 500, color: '#6B7280' }}>{row.label}</span>
@@ -391,7 +423,7 @@ export const OrderSummaryPage = () => {
             <div>
               <p style={{ margin: 0, fontSize: 12, fontWeight: 600, color: '#9CA3AF' }}>Total Pembayaran</p>
               <p style={{ margin: 0, fontSize: 22, fontWeight: 900, color: '#111827', letterSpacing: '-0.5px', lineHeight: 1.2 }}>
-                {formatRp(cartSummary.subtotal)}
+                {formatRp(cartSummary.total)}
               </p>
             </div>
             <div style={{
@@ -469,7 +501,7 @@ export const OrderSummaryPage = () => {
               <Shield size={20} strokeWidth={2.5} style={{ flexShrink: 0 }} />
               <span style={{ fontSize: 'inherit', fontWeight: 800, letterSpacing: '-0.2px', whiteSpace: 'nowrap' }}>Bayar Sekarang</span>
             </div>
-            <span style={{ fontSize: 'inherit', fontWeight: 800, letterSpacing: '-0.2px', flexShrink: 0, marginLeft: '8px' }}>{formatRp(cartSummary.subtotal)}</span>
+            <span style={{ fontSize: 'inherit', fontWeight: 800, letterSpacing: '-0.2px', flexShrink: 0, marginLeft: '8px' }}>{formatRp(cartSummary.total)}</span>
           </button>
         </div>
       </div>

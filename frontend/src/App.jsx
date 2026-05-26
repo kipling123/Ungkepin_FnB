@@ -9,13 +9,15 @@ import { PaymentPage } from './pages/PaymentPage';
 import { OrderPage } from './pages/OrderPage';
 import { ReceiptPage } from './pages/ReceiptPage';
 import { Loader } from './components/Loader';
-import './App.css';
+import { CartDrawer } from './components/CartDrawer';
 import { useState, useEffect } from 'react';
+import './App.css';
 
 function Shell() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const { cartDraft } = useCheckout();
+  const cartCount = Array.isArray(cartDraft) ? cartDraft.reduce((s, it) => s + (it.quantity || 0), 0) : (cartDraft?.quantity || 0);
   
   const [isLoading, setIsLoading] = useState(true);
   const [prevPath, setPrevPath] = useState(pathname);
@@ -40,7 +42,7 @@ function Shell() {
   }, [isLoading, pathname, prevPath]);
 
   const hideNav = ['/order-data', '/order-summary', '/payment', '/receipt'].includes(pathname);
-  const showFloatingBar = pathname === '/' && cartDraft.product;
+  const showFloatingBar = pathname === '/' && cartCount > 0;
 
   return (
     <div className="relative mx-auto flex h-screen w-full max-w-[390px] flex-col bg-[#F8F9FA] shadow-[0_0_100px_rgba(0,0,0,0.05)] isolation-auto overflow-hidden">
@@ -61,6 +63,8 @@ function Shell() {
         )}
       </div>
 
+      <CartDrawer />
+
       {/* Global Floating Checkout Bar */}
       {showFloatingBar && (
         <div className="absolute bottom-[72px] left-0 z-50 w-full px-4 pb-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -73,7 +77,7 @@ function Shell() {
                 <ShoppingBasket size={22} strokeWidth={2.5} />
               </div>
               <div className="text-left">
-                <p className="text-[14px] leading-tight">{cartDraft.quantity} Item Pesanan</p>
+                <p className="text-[14px] leading-tight">{cartCount} Item Pesanan</p>
                 <p className="text-[10px] text-white/70">Sudah siap untuk checkout?</p>
               </div>
             </div>

@@ -7,7 +7,7 @@ export function createAuthRoutes(db) {
   const router = Router();
 
   // Register / Login (mobile doesn't need password - just phone + name)
-  router.post('/auth/login', async (req, res, next) => {
+  router.post('/login', async (req, res, next) => {
     try {
       const { phone, fullName } = req.body;
 
@@ -61,7 +61,7 @@ export function createAuthRoutes(db) {
   });
 
   // Verify token
-  router.post('/auth/verify', async (req, res, next) => {
+  router.post('/verify', async (req, res, next) => {
     try {
       const { token } = req.body;
 
@@ -95,7 +95,7 @@ export function createAuthRoutes(db) {
   });
 
   // Logout
-  router.post('/auth/logout', async (req, res, next) => {
+  router.post('/logout', async (req, res, next) => {
     try {
       const token = req.headers.authorization?.split('Bearer ')[1];
 

@@ -36,12 +36,24 @@ export class ApiClient {
       headers,
     });
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'API Error');
+    // Safely attempt to parse body as JSON — handle empty or non-JSON responses
+    const text = await response.text();
+    let data = null;
+    if (text) {
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        // not JSON, keep raw text available
+        data = text;
+      }
     }
 
-    return response.json();
+    if (!response.ok) {
+      const msg = (data && typeof data === 'object' && (data.error || data.message)) || (typeof data === 'string' && data) || 'API Error';
+      throw new Error(msg);
+    }
+
+    return data;
   }
 
   // Auth endpoints
