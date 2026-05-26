@@ -34,15 +34,20 @@ app.get('/', (req, res) => {
   `);
 });
 
+// Routes API
+const apiRouter = express.Router();
+app.use('/api', apiRouter);
+// Also support root mounting for Vercel prefix stripping
+app.use('/', apiRouter);
+
+apiRouter.use('/auth', createAuthRoutes(db));
+apiRouter.use('/orders', authMiddleware(db), createOrderRoutes(db));
+apiRouter.use('/payments', authMiddleware(db), createPaymentRoutes(db));
+
 // Health check
-app.get('/api/health', (req, res) => {
+apiRouter.get('/health', (req, res) => {
   res.json({ status: 'ok', message: 'Ungkepin backend is running' });
 });
-
-// Routes API
-app.use('/api', createAuthRoutes(db));
-app.use('/api', authMiddleware(db), createOrderRoutes(db));
-app.use('/api', authMiddleware(db), createPaymentRoutes(db));
 
 // Error handling
 app.use(errorHandler);
