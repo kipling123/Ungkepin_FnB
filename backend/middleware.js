@@ -1,26 +1,21 @@
 import jwt from 'jsonwebtoken';
-import { Session } from './database.js';
+import { getAsync } from './database.js';
 
-export function authMiddleware() {
+export function authMiddleware(db) {
   return async (req, res, next) => {
     try {
       const token = req.headers.authorization?.split('Bearer ')[1];
-
+      
       if (!token) {
-        console.warn('[Auth Middleware] No token provided');
         return res.status(401).json({ error: 'No token provided' });
       }
 
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-      // Verify token exists in database and not expired
-      const session = await Session.findOne({
-        token,
-        expiresAt: { $gt: new Date() },
-      });
-
+      
+      // Verify token exists in database
+      const session = await getAsync(db, 'SELECT * FROM sessions WHERE token = ? AND expiresAt > datetime("now")', [token]);
+      
       if (!session) {
-        console.warn('[Auth Middleware] Token expired or invalid');
         return res.status(401).json({ error: 'Token expired or invalid' });
       }
 
@@ -28,14 +23,13 @@ export function authMiddleware() {
       req.user = { id: decoded.userId };
       next();
     } catch (err) {
-      console.error('[Auth Middleware] Error:', err.message);
       res.status(401).json({ error: 'Invalid token' });
     }
   };
 }
 
 export function errorHandler(err, req, res, next) {
-  console.error('[Error Handler]', err);
+  console.error('Error:', err);
   res.status(err.statusCode || 500).json({
     error: err.message || 'Internal server error',
   });
