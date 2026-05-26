@@ -48,20 +48,22 @@ app.use('/api', authMiddleware(db), createPaymentRoutes(db));
 app.use(errorHandler);
 
 // Start server
-const server = app.listen(PORT, () => {
-  console.log(`🚀 Ungkepin backend running on http://localhost:${PORT}`);
-  console.log(`✓ Database initialized`);
-  console.log(`✓ CORS enabled for ${process.env.CORS_ORIGIN || 'http://localhost:5173'}`);
-});
+if (process.env.NODE_ENV !== 'test' && process.env.VERCEL !== '1') {
+  const server = app.listen(PORT, () => {
+    console.log(`🚀 Ungkepin backend running on http://localhost:${PORT}`);
+    console.log(`✓ Database initialized`);
+    console.log(`✓ CORS enabled for ${process.env.CORS_ORIGIN || 'http://localhost:5173'}`);
+  });
 
-server.on('error', (err) => {
-  if (err.code === 'EADDRINUSE') {
-    console.error(`❌ Port ${PORT} sudah dipakai. Tutup proses lain lalu coba lagi.`);
-    process.exit(1);
-  } else {
-    throw err;
-  }
-});
+  server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      console.error(`❌ Port ${PORT} sudah dipakai. Tutup proses lain lalu coba lagi.`);
+      process.exit(1);
+    } else {
+      throw err;
+    }
+  });
+}
 
 // Graceful shutdown
 process.on('SIGINT', () => {
@@ -71,3 +73,5 @@ process.on('SIGINT', () => {
     process.exit(0);
   });
 });
+
+export default app;

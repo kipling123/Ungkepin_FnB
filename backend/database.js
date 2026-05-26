@@ -3,7 +3,9 @@ import { fileURLToPath } from 'url';
 import path from 'path';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DB_PATH = path.join(__dirname, 'database.sqlite');
+const DB_PATH = process.env.VERCEL === '1' 
+  ? path.join('/tmp', 'database.sqlite')
+  : path.join(__dirname, 'database.sqlite');
 
 // Singleton — satu koneksi dipakai sepanjang hidup server
 let dbInstance = null;
