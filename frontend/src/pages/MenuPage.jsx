@@ -1,4 +1,4 @@
-import { ArrowRight, ChevronRight, Flame } from 'lucide-react';
+import { ArrowRight, ChevronRight, Flame, CheckCircle2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { FoodCard } from '../components/FoodCard';
