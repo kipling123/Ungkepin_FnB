@@ -1,5 +1,5 @@
 import { Printer, CheckCircle2, ChevronLeft } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useCheckout } from '../context/CheckoutContext';
 import { formatRp } from '../utils/formatting';
@@ -10,6 +10,7 @@ export const ReceiptPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const orderIdParam = searchParams.get('orderId');
+  const redirectingRef = useRef(false);
 
   const { cartSummary } = useCheckout();
   const [order, setOrder] = useState(null);
@@ -61,7 +62,26 @@ export const ReceiptPage = () => {
         minute: '2-digit'
       });
 
+  useEffect(() => {
+    const handleAfterPrint = () => {
+      if (redirectingRef.current) return;
+      redirectingRef.current = true;
+      
+      const phoneNumber = import.meta.env.VITE_ADMIN_WHATSAPP || '6281903967518';
+      const text = `=============================\n        *UNGKEEPIN*\n   Cita Rasa Nusantara\n=============================\n*ID PESANAN:* ${displayOrderId}\n*TANGGAL:* ${displayDate}\n*PELANGGAN:* ${displayFullName || 'Pelanggan Setia'}\n-----------------------------\n*Rincian Pesanan:*\n${displayProductName}\n  × ${displayQuantity}   ${formatRp(displaySubtotal)}\n-----------------------------\n*Subtotal:* ${formatRp(displaySubtotal)}\n*Ongkir:* ${formatRp(displayDeliveryPrice)}\n-----------------------------\n*TOTAL:* ${formatRp(displayTotal)}\n=============================\n\nSaya telah melakukan pembayaran. Berikut konfirmasi struk belanja saya.`;
+      
+      const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(text)}`;
+      window.location.href = whatsappUrl;
+    };
+
+    window.addEventListener('afterprint', handleAfterPrint);
+    return () => {
+      window.removeEventListener('afterprint', handleAfterPrint);
+    };
+  }, [displayOrderId, displayFullName, displayDate, displayProductName, displayQuantity, displaySubtotal, displayDeliveryPrice, displayTotal]);
+
   const handlePrint = () => {
+    redirectingRef.current = false;
     window.print();
   };
 
@@ -303,7 +323,7 @@ export const ReceiptPage = () => {
           }}
         >
           <Printer size={16} strokeWidth={3} />
-          <span>Cetak Struk</span>
+          <span>Cetak Struk &amp; Kirim WA</span>
         </button>
       </div>
     </div>

@@ -1,8 +1,7 @@
-import { ShoppingBasket, ArrowRight, CheckCircle2, Search, Star, ChevronRight, SlidersHorizontal, Flame } from 'lucide-react';
+import { ArrowRight, ChevronRight, Flame } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { FoodCard } from '../components/FoodCard';
-import { AppHeader } from '../components/AppHeader';
 import { foodProducts } from '../data/foodData';
 import { useCheckout } from '../context/CheckoutContext';
 
@@ -478,33 +477,7 @@ export const MenuPage = () => {
           </div>
         </div>
 
-        {/* ── Search ── */}
-        <div className="slide-up d1" style={s.searchWrap}>
-          <div
-            className={searchFocused ? 'search-focused' : ''}
-            style={s.searchInner}
-          >
-            <Search size={15} color={searchFocused ? '#E86B2A' : '#C8C5BC'} strokeWidth={2.5} />
-            <input
-              style={s.searchInput}
-              placeholder="Cari menu favoritmu..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onFocus={() => setSearchFocused(true)}
-              onBlur={() => setSearchFocused(false)}
-            />
-            {searchQuery ? (
-              <button
-                onClick={() => setSearchQuery('')}
-                style={{ background: '#ECEAE3', border: 'none', borderRadius: '50%', width: 18, height: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: '#7A776E', flexShrink: 0 }}
-              >
-                ✕
-              </button>
-            ) : (
-              <SlidersHorizontal size={14} color="#C8C5BC" strokeWidth={2} />
-            )}
-          </div>
-        </div>
+
 
         {/* ── Hero Banner ── */}
         <div className="slide-up d2" style={s.bannerWrap}>

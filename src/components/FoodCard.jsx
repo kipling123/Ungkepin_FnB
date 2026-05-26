@@ -38,19 +38,7 @@ export const FoodCard = ({
           {description}
         </p>
 
-        <div className="mt-4 flex items-center justify-between text-[9px] font-black uppercase tracking-widest text-gray-300">
-          <span>Status PO</span>
-          <span>
-            <span className="text-[#f27322]">{sold}/{quota}</span> porsi
-          </span>
-        </div>
 
-        <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-[#F3F4F6]">
-          <div
-            className="h-full rounded-full bg-[#f27322] transition-all duration-300"
-            style={{ width: `${pct}%` }}
-          />
-        </div>
 
         <button 
           className="mt-5 flex h-11 w-full items-center justify-center gap-2 bg-[#f27322] font-black text-white shadow-lg shadow-orange-900/20 transition-all active:scale-[0.97] hover:bg-[#e06416]" 

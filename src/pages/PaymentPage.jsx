@@ -1,5 +1,5 @@
-import { Clock, Upload, MessageCircle } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Clock, Upload, CheckCircle2, ImageIcon } from 'lucide-react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { AppHeader } from '../components/AppHeader';
@@ -26,7 +26,7 @@ const StepIndicator = ({ currentStep }) => {
               background: step.num < currentStep ? '#F27322' : step.num === currentStep ? '#F27322' : '#F3F4F6',
               color: step.num <= currentStep ? '#fff' : '#9CA3AF',
             }}>
-              {step.num}
+              {step.num < currentStep ? <CheckCircle2 size={16} strokeWidth={3} /> : step.num}
             </div>
             <span style={{
               fontSize: 10, fontWeight: step.num === currentStep ? 800 : 600,
@@ -50,36 +50,38 @@ export const PaymentPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const orderId = searchParams.get('orderId');
+  const fileInputRef = useRef(null);
 
   const { cartSummary } = useCheckout();
   const [order, setOrder] = useState(null);
-  const [payment, setPayment] = useState(null);
   const [loading, setLoading] = useState(true);
   const [verifying, setVerifying] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState('');
   const [timeLeft, setTimeLeft] = useState(899); // 14:59
 
-  // Fetch order details from database
+  // Bukti bayar
+  const [proofFile, setProofFile] = useState(null);       // File object
+  const [proofPreview, setProofPreview] = useState(null); // object URL untuk preview
+  const [isUploaded, setIsUploaded] = useState(false);
+
+  // Fetch order details
   useEffect(() => {
-    const fetchOrderDetails = async () => {
-      if (!orderId) {
-        setLoading(false);
-        return;
-      }
+    const fetchOrder = async () => {
+      if (!orderId) { setLoading(false); return; }
       try {
         const data = await apiClient.getOrder(orderId);
         setOrder(data.order);
-        setPayment(data.payment);
       } catch (err) {
-        console.error("Gagal memuat pesanan:", err);
-        setError("Gagal memuat detail pesanan.");
+        console.error('Gagal memuat pesanan:', err);
+        setError('Gagal memuat detail pesanan.');
       } finally {
         setLoading(false);
       }
     };
-    fetchOrderDetails();
+    fetchOrder();
   }, [orderId]);
 
+  // Countdown timer
   useEffect(() => {
     const timer = setInterval(() => {
       setTimeLeft((prev) => (prev > 0 ? prev - 1 : 0));
@@ -87,38 +89,62 @@ export const PaymentPage = () => {
     return () => clearInterval(timer);
   }, []);
 
-  const displayTotal = order ? order.total : (cartSummary ? cartSummary.total : 0);
-  const displaySubtotal = order ? order.subtotal : (cartSummary ? cartSummary.subtotal : 0);
-  const displayDeliveryPrice = order ? order.deliveryPrice : (cartSummary ? cartSummary.deliveryPrice : 0);
+  const displayTotal = order?.total ?? cartSummary?.total ?? 0;
+  const displaySubtotal = order?.subtotal ?? cartSummary?.subtotal ?? 0;
+  const displayDeliveryPrice = order?.deliveryPrice ?? cartSummary?.deliveryPrice ?? 0;
 
-  const handleUploadProof = async () => {
+  // Pilih file bukti bayar
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setProofFile(file);
+    setProofPreview(URL.createObjectURL(file));
+    setIsUploaded(true);
+  };
+
+  // Konversi file ke base64 agar bisa dikirim via router state
+  const fileToBase64 = (file) =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+  // Cetak struk — verifikasi backend → kirim ke halaman struk dengan bukti
+  const handleCetakStruk = async () => {
     setVerifying(true);
-    setError("");
-    const targetOrderId = orderId || (order ? order.id : null);
+    setError('');
+    const targetOrderId = orderId || order?.id;
     if (!targetOrderId) {
-      setError("ID pesanan tidak ditemukan.");
+      setError('ID pesanan tidak ditemukan.');
       setVerifying(false);
       return;
     }
     try {
-      // Call backend to verify the payment
+      // 1) Verifikasi pembayaran ke backend
       await apiClient.verifyPayment(targetOrderId, `TXN_${Date.now()}`);
-      // Navigate to receipt
-      navigate(`/receipt?orderId=${targetOrderId}`);
+
+      // 2) Convert bukti bayar ke base64 supaya bisa dibawa ke halaman struk
+      let proofBase64 = null;
+      if (proofFile) {
+        proofBase64 = await fileToBase64(proofFile);
+      }
+
+      // 3) Navigasi ke halaman struk, bawa bukti bayar & info order
+      navigate(`/receipt?orderId=${targetOrderId}`, {
+        state: {
+          proofImage: proofBase64,
+          orderId: targetOrderId,
+          total: displayTotal,
+        },
+      });
     } catch (err) {
-      console.error("Gagal memverifikasi pembayaran:", err);
-      setError("Gagal memproses pembayaran. Coba lagi.");
+      console.error('Gagal memverifikasi:', err);
+      setError('Gagal memproses pembayaran. Coba lagi.');
     } finally {
       setVerifying(false);
     }
-  };
-
-  const handleWhatsAppConfirm = () => {
-    const targetOrderId = orderId || (order ? order.id : null);
-    const amount = formatRp(displayTotal);
-    const formattedId = targetOrderId ? targetOrderId.substring(0, 8).toUpperCase() : "";
-    const text = encodeURIComponent(`Halo Ungkeepin! Saya ingin konfirmasi pembayaran untuk pesanan *UKP-${formattedId}* sebesar *${amount}*.\n\nMohon segera diproses ya. Terima kasih!`);
-    window.open(`https://wa.me/6281234567890?text=${text}`, '_blank');
   };
 
   if (loading) {
@@ -127,9 +153,7 @@ export const PaymentPage = () => {
         minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
         background: '#F7F8FA', fontFamily: "'Plus Jakarta Sans', sans-serif"
       }}>
-        <div style={{ textAlign: 'center' }}>
-          <p style={{ fontWeight: 800, color: '#F27322', fontSize: 16 }}>Memuat informasi pembayaran...</p>
-        </div>
+        <p style={{ fontWeight: 800, color: '#F27322', fontSize: 16 }}>Memuat informasi pembayaran...</p>
       </div>
     );
   }
@@ -141,13 +165,12 @@ export const PaymentPage = () => {
         justifyContent: 'center', background: 'white', padding: 24, textAlign: 'center',
         fontFamily: "'Plus Jakarta Sans', sans-serif"
       }}>
-        <p className="text-gray-400 font-bold">Belum ada pesanan aktif</p>
-        <button 
+        <p style={{ color: '#9CA3AF', fontWeight: 700 }}>Belum ada pesanan aktif</p>
+        <button
           onClick={() => navigate('/')}
           style={{
             marginTop: 16, borderRadius: 6, background: '#F27322', border: 'none',
-            padding: '10px 24px', fontSize: 14, fontWeight: 900, color: 'white',
-            cursor: 'pointer'
+            padding: '10px 24px', fontSize: 14, fontWeight: 900, color: 'white', cursor: 'pointer'
           }}
         >
           Kembali ke Menu
@@ -160,11 +183,7 @@ export const PaymentPage = () => {
     <div style={{
       minHeight: '100vh', background: '#F7F8FA',
       fontFamily: "'Plus Jakarta Sans', sans-serif",
-      maxWidth: '100%',
-      width: '100%',
-      margin: '0 auto',
-      display: 'flex',
-      flexDirection: 'column',
+      width: '100%', display: 'flex', flexDirection: 'column',
     }}>
       <AppHeader />
 
@@ -172,20 +191,23 @@ export const PaymentPage = () => {
         <StepIndicator currentStep={3} />
       </div>
 
-      <div style={{ padding: '24px 16px 120px', flex: 1 }} className="animate-fade-in">
+      <div style={{ padding: '24px 16px 140px', flex: 1 }}>
+
+        {/* ── Judul & Timer ── */}
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <p style={{ margin: 0, fontSize: 11, fontWeight: 800, color: '#F27322', textTransform: 'uppercase', letterSpacing: '0.15em' }}>Menunggu Pembayaran</p>
+          <p style={{ margin: 0, fontSize: 11, fontWeight: 800, color: '#F27322', textTransform: 'uppercase', letterSpacing: '0.15em' }}>
+            Menunggu Pembayaran
+          </p>
           <h1 style={{ margin: '8px 0 0', fontSize: 'clamp(28px, 8vw, 40px)', fontWeight: 900, color: '#111827', letterSpacing: '-1px' }}>
             {formatRp(displayTotal)}
           </h1>
-
           <div style={{ marginTop: 16, display: 'flex', justifyContent: 'center' }}>
             <div style={{
               display: 'flex', alignItems: 'center', gap: 8,
               background: '#FEF2F2', border: '1px solid #FEE2E2',
               borderRadius: 30, padding: '6px 16px', color: '#EF4444'
             }}>
-              <Clock size={14} strokeWidth={3} className="animate-pulse" />
+              <Clock size={14} strokeWidth={3} />
               <span style={{ fontSize: 12, fontWeight: 800 }}>
                 Selesaikan dalam <span style={{ fontFamily: 'monospace' }}>{formatTime(timeLeft)}</span>
               </span>
@@ -193,11 +215,11 @@ export const PaymentPage = () => {
           </div>
         </div>
 
-        {/* QR Card */}
+        {/* ── QR Card ── */}
         <div style={{
-          background: '#fff', borderRadius: 8, overflow: 'hidden',
+          background: '#fff', borderRadius: 12, overflow: 'hidden',
           border: '1px solid #F3F4F6', boxShadow: '0 4px 20px rgba(0,0,0,0.04)',
-          marginBottom: 24
+          marginBottom: 20
         }}>
           <div style={{
             background: '#F9FAFB', padding: '14px 20px',
@@ -206,21 +228,16 @@ export const PaymentPage = () => {
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <div style={{ width: 4, height: 16, background: '#F27322', borderRadius: 2 }} />
-              <span style={{ fontSize: 11, fontWeight: 800, color: '#111827', tracking: '0.05em' }}>QRIS PEMBAYARAN</span>
+              <span style={{ fontSize: 11, fontWeight: 800, color: '#111827' }}>QRIS PEMBAYARAN</span>
             </div>
             <span style={{ fontSize: 10, fontWeight: 700, color: '#9CA3AF' }}>ID: 1026518518</span>
           </div>
-
           <div style={{ padding: 24, textAlign: 'center' }}>
             <div style={{
               background: '#fff', border: '1.5px solid #F3F4F6',
-              borderRadius: 12, padding: 12, marginBottom: 20
+              borderRadius: 12, padding: 12, marginBottom: 16
             }}>
-              <img
-                src={qrisImage}
-                alt="QRIS"
-                style={{ width: '100%', height: 'auto', borderRadius: 8 }}
-              />
+              <img src={qrisImage} alt="QRIS" style={{ width: '100%', height: 'auto', borderRadius: 8 }} />
             </div>
             <h3 style={{ margin: 0, fontSize: 16, fontWeight: 900, color: '#111827' }}>UNGKEEPIN</h3>
             <p style={{ margin: '4px 0 0', fontSize: 12, fontWeight: 500, color: '#6B7280', lineHeight: 1.5 }}>
@@ -229,60 +246,112 @@ export const PaymentPage = () => {
           </div>
         </div>
 
-        {/* Error message */}
+        {/* ── Error ── */}
         {error && (
           <div style={{
-            background: '#FEE2E2', border: '1px solid #FEE2E2',
-            color: '#EF4444', padding: '12px 16px', borderRadius: 8,
-            fontSize: 12, fontWeight: 700, textAlign: 'center', marginBottom: 20
+            background: '#FEE2E2', border: '1px solid #FECACA',
+            color: '#DC2626', padding: '12px 16px', borderRadius: 8,
+            fontSize: 12, fontWeight: 700, textAlign: 'center', marginBottom: 16
           }}>
             {error}
           </div>
         )}
 
-        {/* Actions */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 24, maxWidth: 480, margin: '0 auto' }}>
-          <button 
-            onClick={handleUploadProof}
-            disabled={verifying}
-            style={{
-              height: 54, borderRadius: 8, background: verifying ? '#D1D5DB' : '#22C55E',
-              border: 'none', color: '#fff', fontSize: 15, fontWeight: 800,
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-              boxShadow: verifying ? 'none' : '0 8px 20px rgba(34,197,94,0.2)',
-              cursor: verifying ? 'not-allowed' : 'pointer'
-            }}
-          >
-            <Upload size={18} strokeWidth={3} />
-            <span>{verifying ? 'Memverifikasi...' : 'Upload Bukti Bayar'}</span>
-          </button>
+        {/* ── Hidden File Input ── */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          style={{ display: 'none' }}
+          onChange={handleFileChange}
+        />
 
-          <button 
-            onClick={handleWhatsAppConfirm}
-            style={{
-              height: 54, borderRadius: 8, background: '#fff',
-              border: '2px solid #F3F4F6', color: '#22C55E', fontSize: 15, fontWeight: 800,
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-              cursor: 'pointer'
-            }}
-          >
-            <MessageCircle size={18} strokeWidth={3} />
-            <span>Konfirmasi WhatsApp</span>
-          </button>
+        {/* ── Step: Upload Bukti ── */}
+        <div style={{
+          background: '#fff', borderRadius: 12, border: '1px solid #F3F4F6',
+          boxShadow: '0 2px 12px rgba(0,0,0,0.04)', marginBottom: 16, overflow: 'hidden'
+        }}>
+          {/* Header step */}
+          <div style={{
+            padding: '14px 18px', background: isUploaded ? '#F0FDF4' : '#FFF7F0',
+            borderBottom: `1px solid ${isUploaded ? '#BBF7D0' : '#FEE8D4'}`,
+            display: 'flex', alignItems: 'center', gap: 10
+          }}>
+            <div style={{
+              width: 28, height: 28, borderRadius: '50%',
+              background: isUploaded ? '#22C55E' : '#F27322',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
+            }}>
+              {isUploaded
+                ? <CheckCircle2 size={15} color="#fff" strokeWidth={3} />
+                : <Upload size={14} color="#fff" strokeWidth={3} />}
+            </div>
+            <div>
+              <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: isUploaded ? '#15803D' : '#92400E' }}>
+                {isUploaded ? 'Bukti Pembayaran Diunggah ✓' : 'Upload Bukti Pembayaran'}
+              </p>
+              <p style={{ margin: 0, fontSize: 11, fontWeight: 500, color: isUploaded ? '#16A34A' : '#B45309' }}>
+                {isUploaded ? 'Foto bukti siap dilampirkan di struk' : 'Foto screenshot / transfer setelah bayar QRIS'}
+              </p>
+            </div>
+          </div>
+
+          {/* Preview foto bukti */}
+          {isUploaded && proofPreview ? (
+            <div style={{ padding: 16 }}>
+              <div style={{
+                width: '100%', maxHeight: 200, overflow: 'hidden',
+                borderRadius: 8, border: '1.5px dashed #D1D5DB',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: '#F9FAFB'
+              }}>
+                <img
+                  src={proofPreview}
+                  alt="Bukti Bayar"
+                  style={{ width: '100%', height: 'auto', maxHeight: 200, objectFit: 'contain' }}
+                />
+              </div>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                style={{
+                  marginTop: 10, width: '100%', height: 36, borderRadius: 6,
+                  background: '#F3F4F6', border: 'none', fontSize: 12, fontWeight: 700,
+                  color: '#374151', cursor: 'pointer', display: 'flex', alignItems: 'center',
+                  justifyContent: 'center', gap: 6
+                }}
+              >
+                <ImageIcon size={13} strokeWidth={2.5} />
+                Ganti Foto Bukti
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              style={{
+                width: '100%', height: 60, background: 'transparent', border: 'none',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+                cursor: 'pointer', color: '#F27322', fontSize: 14, fontWeight: 800
+              }}
+            >
+              <Upload size={18} strokeWidth={2.5} />
+              Pilih Foto Bukti Bayar
+            </button>
+          )}
         </div>
 
-        {/* Billing Summary */}
+        {/* ── Ringkasan Biaya ── */}
         <div style={{
-          background: '#fff', borderRadius: 8, padding: 20,
-          border: '1px solid #F3F4F6'
+          background: '#fff', borderRadius: 12, padding: 20,
+          border: '1px solid #F3F4F6', marginBottom: 20,
+          boxShadow: '0 2px 12px rgba(0,0,0,0.04)'
         }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
             <span style={{ fontSize: 13, fontWeight: 500, color: '#6B7280' }}>Subtotal + Ongkir</span>
             <span style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>
               {formatRp(displaySubtotal + displayDeliveryPrice)}
             </span>
           </div>
-          <div style={{ height: 1, background: '#F3F4F6', margin: '12px 0' }} />
+          <div style={{ height: 1, background: '#F3F4F6', margin: '10px 0' }} />
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: 14, fontWeight: 800, color: '#111827' }}>Total Pembayaran</span>
             <span style={{ fontSize: 18, fontWeight: 900, color: '#F27322' }}>
@@ -290,6 +359,61 @@ export const PaymentPage = () => {
             </span>
           </div>
         </div>
+
+      </div>
+
+      {/* ── Sticky Bottom: Tombol Cetak Struk ── */}
+      <div style={{
+        position: 'fixed', bottom: 0, left: 0, right: 0,
+        background: 'rgba(255,255,255,0.96)',
+        backdropFilter: 'blur(12px)',
+        borderTop: '1px solid #F3F4F6',
+        padding: '12px 16px 20px', zIndex: 50,
+      }}>
+        {!isUploaded ? (
+          <div style={{
+            height: 54, borderRadius: 10,
+            background: '#F3F4F6',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10
+          }}>
+            <Upload size={18} color="#9CA3AF" strokeWidth={2.5} />
+            <span style={{ fontSize: 14, fontWeight: 800, color: '#9CA3AF' }}>
+              Upload bukti bayar dulu untuk cetak struk
+            </span>
+          </div>
+        ) : (
+          <button
+            onClick={handleCetakStruk}
+            disabled={verifying}
+            style={{
+              width: '100%', height: 54, borderRadius: 10,
+              background: verifying
+                ? '#D1D5DB'
+                : 'linear-gradient(135deg, #F27322 0%, #E05E0A 100%)',
+              border: 'none', color: '#fff', fontSize: 15, fontWeight: 900,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+              boxShadow: verifying ? 'none' : '0 8px 24px rgba(242,115,34,0.35)',
+              cursor: verifying ? 'not-allowed' : 'pointer',
+              letterSpacing: '-0.2px', transition: 'all 0.2s'
+            }}
+          >
+            {verifying ? (
+              <span>Memproses...</span>
+            ) : (
+              <>
+                <CheckCircle2 size={20} strokeWidth={2.5} />
+                <span>Cetak Struk</span>
+              </>
+            )}
+          </button>
+        )}
+        <p style={{
+          margin: '8px 0 0', textAlign: 'center',
+          fontSize: 10, fontWeight: 700, color: '#9CA3AF',
+          textTransform: 'uppercase', letterSpacing: '0.08em'
+        }}>
+          Struk akan tampil • Konfirmasi ke admin via WhatsApp
+        </p>
       </div>
     </div>
   );
