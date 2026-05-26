@@ -5,7 +5,7 @@ import { FoodCard } from '../components/FoodCard';
 import { foodProducts } from '../data/foodData';
 import { useCheckout } from '../context/CheckoutContext';
 
-const CATEGORIES = ['Semua', 'Ayam', 'Ikan', 'Minuman'];
+const CATEGORIES = ['Semua', 'Ayam', 'Ikan'];
 
 /* ─── INLINE STYLES ─── */
 const s = {
