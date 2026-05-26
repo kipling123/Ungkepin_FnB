@@ -6,6 +6,12 @@ import { formatRp } from '../utils/formatting';
 import { AppHeader } from '../components/AppHeader';
 import { apiClient } from '../services/api';
 
+const WhatsAppIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="#fff" style={{ marginRight: 6 }}>
+    <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.73-1.45L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.42 9.864-9.858.002-2.634-1.023-5.11-2.884-6.974C16.526 1.909 14.058.882 11.996.882c-5.44 0-9.863 4.42-9.867 9.858-.001 1.77.462 3.5 1.34 5.025l-1.096 4.007 4.116-1.08c1.512.82 3.19 1.253 4.858 1.254zm11.233-7.653c-.307-.154-1.82-.9-2.102-1.002-.281-.102-.486-.154-.69.154-.204.307-.792.998-.97 1.196-.179.199-.358.224-.665.07-.307-.154-1.3-.479-2.477-1.529-.918-.818-1.536-1.83-1.716-2.138-.179-.307-.019-.473.135-.626.138-.138.307-.358.46-.537.154-.179.204-.307.307-.512.102-.205.051-.384-.025-.537-.077-.154-.69-1.664-.946-2.278-.25-.6-.523-.518-.717-.528-.184-.01-.397-.012-.61-.012-.213 0-.56.08-.853.4-.293.32-1.12 1.096-1.12 2.67 0 1.575 1.147 3.1 1.301 3.3.154.205 2.257 3.447 5.467 4.834.763.33 1.359.527 1.823.674.767.244 1.467.21 2.02.127.618-.093 1.82-.743 2.076-1.46.256-.717.256-1.33.179-1.46-.076-.13-.281-.205-.589-.359z"/>
+  </svg>
+);
+
 export const ReceiptPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -62,34 +68,24 @@ export const ReceiptPage = () => {
         minute: '2-digit'
       });
 
-  useEffect(() => {
-    const handleAfterPrint = () => {
-      if (redirectingRef.current) return;
-      redirectingRef.current = true;
-      
-      const phoneNumber = import.meta.env.VITE_ADMIN_WHATSAPP || '6281903967518';
-      
-      let itemsDetailsText = "";
-      if (displayProductName.includes(' + ')) {
-        itemsDetailsText = displayProductName.split(' + ').map(item => `• ${item}`).join('\n');
-      } else {
-        itemsDetailsText = `${displayProductName}\n  × ${displayQuantity}   ${formatRp(displaySubtotal)}`;
-      }
+  // Generate WhatsApp message and redirect manually
+  const handleWhatsApp = () => {
+    const phoneNumber = import.meta.env.VITE_ADMIN_WHATSAPP || '6281903967518';
+    
+    let itemsDetailsText = "";
+    if (displayProductName.includes(' + ')) {
+      itemsDetailsText = displayProductName.split(' + ').map(item => `• ${item}`).join('\n');
+    } else {
+      itemsDetailsText = `${displayProductName}\n  × ${displayQuantity}   ${formatRp(displaySubtotal)}`;
+    }
 
-      const text = `=============================\n        *UNGKEEPIN*\n   Cita Rasa Nusantara\n=============================\n*ID PESANAN:* ${displayOrderId}\n*TANGGAL:* ${displayDate}\n*PELANGGAN:* ${displayFullName || 'Pelanggan Setia'}\n-----------------------------\n*Rincian Pesanan:*\n${itemsDetailsText}\n-----------------------------\n*Subtotal:* ${formatRp(displaySubtotal)}\n*Ongkir:* ${formatRp(displayDeliveryPrice)}\n-----------------------------\n*TOTAL:* ${formatRp(displayTotal)}\n=============================\n\nSaya telah melakukan pembayaran. Berikut konfirmasi struk belanja saya.`;
-      
-      const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(text)}`;
-      window.location.href = whatsappUrl;
-    };
-
-    window.addEventListener('afterprint', handleAfterPrint);
-    return () => {
-      window.removeEventListener('afterprint', handleAfterPrint);
-    };
-  }, [displayOrderId, displayFullName, displayDate, displayProductName, displayQuantity, displaySubtotal, displayDeliveryPrice, displayTotal]);
+    const text = `=============================\n        *UNGKEEPIN*\n   Cita Rasa Nusantara\n=============================\n*ID PESANAN:* ${displayOrderId}\n*TANGGAL:* ${displayDate}\n*PELANGGAN:* ${displayFullName || 'Pelanggan Setia'}\n-----------------------------\n*Rincian Pesanan:*\n${itemsDetailsText}\n-----------------------------\n*Subtotal:* ${formatRp(displaySubtotal)}\n*Ongkir:* ${formatRp(displayDeliveryPrice)}\n-----------------------------\n*TOTAL:* ${formatRp(displayTotal)}\n=============================\n\nSaya telah melakukan pembayaran. Berikut konfirmasi struk belanja saya.`;
+    
+    const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(text)}`;
+    window.location.href = whatsappUrl;
+  };
 
   const handlePrint = () => {
-    redirectingRef.current = false;
     window.print();
   };
 
@@ -317,36 +313,57 @@ export const ReceiptPage = () => {
       {/* Floating Action Buttons */}
       <div className="no-print" style={{
         position: 'fixed', bottom: 0, left: 0, right: 0,
-        background: 'rgba(255,255,255,0.9)',
-        backdropBlur: '12px', padding: '16px 16px 20px', zIndex: 100,
-        display: 'flex', gap: 12, borderTop: '1px solid #F3F4F6',
-        maxWidth: '100%',
+        background: 'rgba(255,255,255,0.96)',
+        backdropFilter: 'blur(12px)', padding: '16px 16px 20px', zIndex: 100,
+        borderTop: '1px solid #F3F4F6',
+        maxWidth: '480px',
+        margin: '0 auto',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 10,
       }}>
+        {/* Row 1: Kirim Konfirmasi ke WA */}
         <button 
-          onClick={() => navigate('/')}
+          onClick={handleWhatsApp}
           style={{
-            flex: 1, height: 48, borderRadius: 8, background: '#F9FAFB',
-            border: '1.5px solid #F3F4F6', color: '#111827', fontSize: 'clamp(12px, 3vw, 14px)', fontWeight: 800,
+            width: '100%', height: 50, borderRadius: 8, background: '#22C55E',
+            border: 'none', color: '#fff', fontSize: '14px', fontWeight: 800,
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-            cursor: 'pointer', minHeight: 48
+            boxShadow: '0 8px 24px rgba(34,197,94,0.25)', cursor: 'pointer', minHeight: 50
           }}
         >
-          <ChevronLeft size={16} strokeWidth={3} />
-          <span>Kembali</span>
+          <WhatsAppIcon />
+          <span>Kirim Konfirmasi ke WA</span>
         </button>
 
-        <button 
-          onClick={handlePrint}
-          style={{
-            flex: 2, height: 48, borderRadius: 8, background: '#F27322',
-            border: 'none', color: '#fff', fontSize: 'clamp(12px, 3vw, 14px)', fontWeight: 800,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-            boxShadow: '0 8px 24px rgba(242,115,34,0.25)', cursor: 'pointer', minHeight: 48
-          }}
-        >
-          <Printer size={16} strokeWidth={3} />
-          <span>Cetak Struk &amp; Kirim WA</span>
-        </button>
+        {/* Row 2: Kembali & Simpan PDF */}
+        <div style={{ display: 'flex', gap: 10, width: '100%' }}>
+          <button 
+            onClick={() => navigate('/')}
+            style={{
+              flex: 1, height: 46, borderRadius: 8, background: '#F9FAFB',
+              border: '1.5px solid #E5E7EB', color: '#4B5563', fontSize: '13px', fontWeight: 800,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              cursor: 'pointer', minHeight: 46
+            }}
+          >
+            <ChevronLeft size={15} strokeWidth={3} />
+            <span>Kembali</span>
+          </button>
+
+          <button 
+            onClick={handlePrint}
+            style={{
+              flex: 1.2, height: 46, borderRadius: 8, background: '#FFF7F0',
+              border: '1.5px solid #FEE8D4', color: '#F27322', fontSize: '13px', fontWeight: 800,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              cursor: 'pointer', minHeight: 46
+            }}
+          >
+            <Printer size={15} strokeWidth={3} />
+            <span>Simpan PDF / Cetak</span>
+          </button>
+        </div>
       </div>
     </div>
   );
